@@ -1,0 +1,160 @@
+<!DOCTYPE html>
+<html lang="th">
+<head>
+    <meta charset="UTF-8">
+    <title>Square Jump Game</title>
+    <style>
+        body {
+            margin: 0;
+            display: flex;
+            justify-content: center;
+            align-items: center;
+            height: 100vh;
+            background-color: #f0f0f0;
+            font-family: Arial, sans-serif;
+            overflow: hidden;
+        }
+        #gameCanvas {
+            background-color: #fff;
+            border: 2px solid #333;
+            box-shadow: 0 0 20px rgba(0,0,0,0.1);
+        }
+        .ui {
+            position: absolute;
+            top: 20px;
+            text-align: center;
+            pointer-events: none;
+        }
+    </style>
+</head>
+<body>
+
+    <div class="ui">
+        <h1>กด Spacebar เพื่อกระโดด</h1>
+        <h2 id="score">Score: 0</h2>
+    </div>
+    <canvas id="gameCanvas"></canvas>
+
+<script>
+    const canvas = document.getElementById("gameCanvas");
+    const ctx = canvas.getContext("2d");
+    const scoreElement = document.getElementById("score");
+
+    // ตั้งค่าขนาดจอเกม
+    canvas.width = 800;
+    canvas.height = 400;
+
+    // ตัวแปรหลัก
+    let score = 0;
+    let gameActive = true;
+
+    // ตั้งค่าตัวละคร
+    const player = {
+        x: 50,
+        y: 350,
+        width: 40,
+        height: 40,
+        color: "#FF5733",
+        dy: 0,
+        jumpForce: 12,
+        gravity: 0.6,
+        grounded: false
+    };
+
+    // ตั้งค่าสิ่งกีดขวาง
+    const obstacles = [];
+    let frameCount = 0;
+
+    function createObstacle() {
+        const size = Math.random() * (50 - 20) + 20;
+        obstacles.push({
+            x: canvas.width,
+            y: canvas.height - size,
+            width: size,
+            height: size,
+            color: "#333",
+            speed: 5 + (score / 10) // ยิ่งคะแนนเยอะ ยิ่งเร็ว
+        });
+    }
+
+    function update() {
+        if (!gameActive) return;
+
+        // ระบบฟิสิกส์ตัวละคร
+        player.dy += player.gravity;
+        player.y += player.dy;
+
+        // พื้นดิน
+        if (player.y + player.height > canvas.height) {
+            player.y = canvas.height - player.height;
+            player.dy = 0;
+            player.grounded = true;
+        } else {
+            player.grounded = false;
+        }
+
+        // จัดการสิ่งกีดขวาง
+        if (frameCount % 100 === 0) createObstacle();
+        
+        for (let i = obstacles.length - 1; i >= 0; i--) {
+            obstacles[i].x -= obstacles[i].speed;
+
+            // ตรวจสอบการชน (Collision)
+            if (
+                player.x < obstacles[i].x + obstacles[i].width &&
+                player.x + player.width > obstacles[i].x &&
+                player.y < obstacles[i].y + obstacles[i].height &&
+                player.y + player.height > obstacles[i].y
+            ) {
+                gameOver();
+            }
+
+            // ลบเมื่อพ้นจอและเพิ่มคะแนน
+            if (obstacles[i].x + obstacles[i].width < 0) {
+                obstacles.splice(i, 1);
+                score++;
+                scoreElement.innerText = `Score: ${score}`;
+            }
+        }
+
+        frameCount++;
+    }
+
+    function draw() {
+        ctx.clearRect(0, 0, canvas.width, canvas.height);
+
+        // วาดตัวละคร
+        ctx.fillStyle = player.color;
+        ctx.fillRect(player.x, player.y, player.width, player.height);
+
+        // วาดสิ่งกีดขวาง
+        ctx.fillStyle = "#333";
+        obstacles.forEach(obs => {
+            ctx.fillRect(obs.x, obs.y, obs.width, obs.height);
+        });
+    }
+
+    function loop() {
+        update();
+        draw();
+        if (gameActive) requestAnimationFrame(loop);
+    }
+
+    function gameOver() {
+        gameActive = false;
+        alert(`Game Over! คะแนนของคุณคือ: ${score}\nกดตกลงเพื่อเริ่มใหม่`);
+        location.reload(); // รีโหลดหน้าเพื่อเริ่มใหม่
+    }
+
+    // ควบคุมการกระโดด
+    window.addEventListener("keydown", (e) => {
+        if (e.code === "Space" && player.grounded) {
+            player.dy = -player.jumpForce;
+            player.grounded = false;
+        }
+    });
+
+    loop();
+</script>
+</body>
+</html>
