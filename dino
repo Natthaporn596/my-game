@@ -2,228 +2,169 @@
 <html lang="th">
 <head>
     <meta charset="UTF-8">
-    <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>Dino Jump: กระโดดหลบสิ่งกีดขวาง</title>
+    <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
+    <title>Mobile Jump Game</title>
     <style>
-        /* -------------------- CSS สำหรับเกม Dino Jump -------------------- */
         body {
-            font-family: 'Press Start 2P', cursive, Arial, sans-serif; /* ฟอนต์สไตล์เกม Retro */
-            background-color: #f7f7f7;
-            display: flex;
-            flex-direction: column;
-            justify-content: center;
-            align-items: center;
-            min-height: 100vh;
             margin: 0;
-            overflow: hidden; /* ซ่อน scrollbar ถ้ามี */
+            padding: 0;
+            overflow: hidden;
+            background-color: #2c3e50;
+            font-family: 'Arial', sans-serif;
+            touch-action: manipulation; /* ป้องกันการซูมเมื่อแตะรัวๆ */
         }
-
-        @import url('https://fonts.googleapis.com/css2?family=Press+Start+2P&display=swap'); /* import font */
-
-        .game-area {
-            width: 90%;
-            max-width: 800px;
-            height: 200px;
-            border: 2px solid #333;
-            background-color: #eee;
-            position: relative;
-            overflow: hidden; /* ซ่อนสิ่งกีดขวางที่อยู่นอกพื้นที่ */
-            margin-bottom: 20px;
+        #gameCanvas {
+            display: block;
+            background-color: #ecf0f1;
         }
-
-        #dino {
-            width: 40px;
-            height: 40px;
-            background-color: #66bb6a; /* สีเขียวเหมือนไดโนเสาร์ */
+        .ui-overlay {
             position: absolute;
-            bottom: 0; /* เริ่มต้นที่พื้น */
-            left: 50px;
-            border-radius: 5px; /* ทำให้ดูไม่เหลี่ยมจัด */
-            transition: bottom 0.2s ease-out; /* ทำให้กระโดดดู smooth */
+            top: 20px;
+            width: 100%;
+            text-align: center;
+            color: #fff;
+            pointer-events: none;
+            text-shadow: 2px 2px 4px rgba(0,0,0,0.5);
         }
-
-        #dino.jump {
-            animation: jump 0.6s ease-out forwards; /* animation สำหรับการกระโดด */
-        }
-
-        @keyframes jump {
-            0% { bottom: 0; }
-            50% { bottom: 100px; } /* จุดสูงสุดของการกระโดด */
-            100% { bottom: 0; }
-        }
-
-        .cactus {
-            width: 20px;
-            height: 40px;
-            background-color: #ff9800; /* สีส้มเหมือนกระบองเพชร */
-            position: absolute;
-            bottom: 0;
-            right: -20px; /* เริ่มต้นจากขวานอกจอ */
-            border-radius: 5px;
-            animation: moveCactus 2s linear infinite; /* เคลื่อนที่จากขวาไปซ้าย */
-        }
-
-        @keyframes moveCactus {
-            0% { right: -20px; }
-            100% { right: 100%; } /* เคลื่อนที่ไปจนสุดซ้าย */
-        }
-
-        #score {
-            font-size: 1.5em;
-            color: #333;
-            margin-bottom: 10px;
-        }
-
-        #game-over {
-            font-size: 2em;
-            color: #e74c3c;
-            display: none; /* ซ่อนตอนแรก */
-            position: absolute;
-            top: 50%;
-            left: 50%;
-            transform: translate(-50%, -50%);
-            background: rgba(255, 255, 255, 0.9);
-            padding: 20px 40px;
-            border-radius: 10px;
-            z-index: 10;
-        }
-
-        .controls {
-            margin-top: 20px;
-            display: flex;
-            gap: 15px;
-        }
-
-        .controls button {
-            padding: 10px 20px;
-            font-size: 1.2em;
-            border: none;
-            border-radius: 8px;
-            background-color: #3498db;
-            color: white;
-            cursor: pointer;
-            transition: background-color 0.3s;
-        }
-
-        .controls button:hover {
-            background-color: #2980b9;
-        }
-        .controls button.red {
-            background-color: #e74c3c;
-        }
-        .controls button.red:hover {
-            background-color: #c0392b;
-        }
-
     </style>
 </head>
 <body>
 
-    <div id="score">คะแนน: 0</div>
-    
-    <div class="game-area">
-        <div id="dino"></div>
-        <div id="cactus" class="cactus"></div>
-        <div id="game-over">Game Over!</div>
+    <div class="ui-overlay">
+        <h2 id="score">Score: 0</h2>
+        <p>แตะหน้าจอเพื่อกระโดด</p>
     </div>
+    <canvas id="gameCanvas"></canvas>
 
-    <div class="controls">
-        <button id="jump-button">กระโดด!</button>
-        <button id="restart-button">เล่นใหม่</button>
-        <a href="index.html" class="controls button red">กลับเมนูหลัก</a>
-    </div>
+<script>
+    const canvas = document.getElementById("gameCanvas");
+    const ctx = canvas.getContext("2d");
+    const scoreElement = document.getElementById("score");
 
-    <script>
-        // -------------------- JavaScript สำหรับเกม Dino Jump --------------------
-        const dino = document.getElementById('dino');
-        const cactus = document.getElementById('cactus');
-        const scoreDisplay = document.getElementById('score');
-        const gameOverDisplay = document.getElementById('game-over');
-        const jumpButton = document.getElementById('jump-button');
-        const restartButton = document.getElementById('restart-button');
+    // ปรับขนาด Canvas ให้เต็มหน้าจอมือถือ
+    function resize() {
+        canvas.width = window.innerWidth;
+        canvas.height = window.innerHeight;
+    }
+    window.addEventListener('resize', resize);
+    resize();
 
-        let score = 0;
-        let isGameOver = false;
-        let cactusSpeed = 2000; // ความเร็วเริ่มต้นของกระบองเพชร (ms)
-        let gameInterval;
-        let collisionDetectionInterval;
+    let score = 0;
+    let gameActive = true;
+    let frameCount = 0;
 
-        // ฟังก์ชันกระโดด
-        function jump() {
-            if (!isGameOver && !dino.classList.contains('jump')) {
-                dino.classList.add('jump');
-                setTimeout(() => {
-                    dino.classList.remove('jump');
-                }, 600); // ต้องเท่ากับ animation duration ของ jump
-            }
+    // ตัวละคร (ปรับขนาดตามความกว้างหน้าจอเล็กน้อย)
+    const player = {
+        x: 50,
+        y: canvas.height - 100,
+        width: 40,
+        height: 40,
+        color: "#e74c3c",
+        dy: 0,
+        jumpForce: 15, // แรงกระโดด
+        gravity: 0.8,
+        grounded: false
+    };
+
+    const obstacles = [];
+
+    function createObstacle() {
+        const height = Math.random() * (60 - 30) + 30;
+        obstacles.push({
+            x: canvas.width,
+            y: canvas.height - height,
+            width: 30,
+            height: height,
+            color: "#34495e",
+            speed: 6 + (score / 5)
+        });
+    }
+
+    function jump() {
+        if (player.grounded && gameActive) {
+            player.dy = -player.jumpForce;
+            player.grounded = false;
+        }
+    }
+
+    // รองรับทั้งการแตะหน้าจอ (Touch) และ Spacebar
+    window.addEventListener("touchstart", (e) => {
+        e.preventDefault(); // ป้องกันการเลื่อนหน้าจอขณะเล่น
+        jump();
+    }, { passive: false });
+
+    window.addEventListener("keydown", (e) => {
+        if (e.code === "Space") jump();
+    });
+
+    function update() {
+        if (!gameActive) return;
+
+        player.dy += player.gravity;
+        player.y += player.dy;
+
+        // เช็คพื้นดิน
+        if (player.y + player.height > canvas.height) {
+            player.y = canvas.height - player.height;
+            player.dy = 0;
+            player.grounded = true;
         }
 
-        // ฟังก์ชันตรวจจับการชน
-        function checkCollision() {
-            const dinoRect = dino.getBoundingClientRect();
-            const cactusRect = cactus.getBoundingClientRect();
+        // สิ่งกีดขวาง
+        if (frameCount % 80 === 0) createObstacle();
+        
+        for (let i = obstacles.length - 1; i >= 0; i--) {
+            obstacles[i].x -= obstacles[i].speed;
 
-            // ตรวจสอบว่าชนกันหรือไม่
+            // Collision Detection
             if (
-                dinoRect.left < cactusRect.right &&
-                dinoRect.right > cactusRect.left &&
-                dinoRect.top < cactusRect.bottom &&
-                dinoRect.bottom > cactusRect.top &&
-                dinoRect.bottom > 0 // ตรวจสอบว่าไดโนยังอยู่บนพื้น (ไม่ได้กระโดดสูงเกิน)
+                player.x < obstacles[i].x + obstacles[i].width &&
+                player.x + player.width > obstacles[i].x &&
+                player.y < obstacles[i].y + obstacles[i].height &&
+                player.y + player.height > obstacles[i].y
             ) {
                 gameOver();
             }
-        }
 
-        // ฟังก์ชันเมื่อเกมโอเวอร์
-        function gameOver() {
-            isGameOver = true;
-            gameOverDisplay.style.display = 'block';
-            clearInterval(gameInterval); // หยุดการเคลื่อนที่ของกระบองเพชร
-            clearInterval(collisionDetectionInterval); // หยุดการตรวจจับการชน
-            cactus.style.animationPlayState = 'paused'; // หยุด animation ของกระบองเพชร
-            alert(`เกมจบแล้ว! คะแนนของคุณ: ${score}`); // แจ้งคะแนน
-        }
-
-        // ฟังก์ชันรีเซ็ตเกม
-        function resetGame() {
-            isGameOver = false;
-            score = 0;
-            scoreDisplay.textContent = 'คะแนน: 0';
-            gameOverDisplay.style.display = 'none';
-            cactus.style.animationPlayState = 'running';
-            cactus.style.animationDuration = `${cactusSpeed / 1000}s`; // รีเซ็ตความเร็ว
-            startGame(); // เริ่มเกมใหม่
-        }
-
-        // ฟังก์ชันเริ่มเกม
-        function startGame() {
-            if (isGameOver) resetGame();
-
-            // เพิ่มคะแนนทุก 100ms
-            gameInterval = setInterval(() => {
-                if (!isGameOver) {
-                    score++;
-                    scoreDisplay.textContent = `คะแนน: ${score}`;
-                }
-            }, 100);
-
-            // ตรวจจับการชนทุก 10ms
-            collisionDetectionInterval = setInterval(checkCollision, 10);
-        }
-
-        // Event Listeners
-        document.addEventListener('keydown', (event) => {
-            if (event.code === 'Space' || event.code === 'ArrowUp') {
-                jump();
+            if (obstacles[i].x + obstacles[i].width < 0) {
+                obstacles.splice(i, 1);
+                score++;
+                scoreElement.innerText = `Score: ${score}`;
             }
+        }
+        frameCount++;
+    }
+
+    function draw() {
+        ctx.clearRect(0, 0, canvas.width, canvas.height);
+
+        // วาดตัวละคร
+        ctx.fillStyle = player.color;
+        ctx.shadowBlur = 10;
+        ctx.shadowColor = "rgba(0,0,0,0.2)";
+        ctx.fillRect(player.x, player.y, player.width, player.height);
+
+        // วาดสิ่งกีดขวาง
+        ctx.shadowBlur = 0;
+        ctx.fillStyle = "#34495e";
+        obstacles.forEach(obs => {
+            ctx.fillRect(obs.x, obs.y, obs.width, obs.height);
         });
-        jumpButton.addEventListener('click', jump);
-        restartButton.addEventListener('click', resetGame);
+    }
 
-        // เริ่มเกมเมื่อโหลดหน้า
-        startGame();
+    function loop() {
+        update();
+        draw();
+        if (gameActive) requestAnimationFrame(loop);
+    }
 
-    </script>
+    function gameOver() {
+        gameActive = false;
+        alert("จบเกม! คะแนนของคุณคือ: " + score);
+        location.reload();
+    }
+
+    loop();
+</script>
 </body>
 </html>
